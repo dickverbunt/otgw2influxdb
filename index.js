@@ -6,29 +6,30 @@ const fs = require('fs');
 const mqtt = require('mqtt');
 const Influx = require('influx');
 var mqttClient;
+var influx;
 var influxhost = 'localhost';
 var influxport = 8086;
 var databasename = 'heatingsystem';
 var mqtthost = 'localhost';
 var mqttport = 1883;
+var uniqueID;
 var topics = [];
 
 function connectAndSubscribe() {
     mqttClient.on('connect', function () {
         topics.forEach(function(topic) {
-            // subscribeToTopic(topic);
-            mqttClient.subscribe(topic);
+            mqttClient.subscribe(topic.replace("{uniqueID}", uniqueID));
         });
     });
 }
 
 function listenForMessages() {
     mqttClient.on('message', function (topic, message) {
-        var convertedMessage = convertToInfluxPoint(topic, JSON.parse(message));
+        var convertedMessage = convertToInfluxPoint(topic, message);
         try {
             influx.writePoints([convertedMessage]);
         } catch (err) {
-            console.error("Something went wrong writing to influxdb", e);
+            console.error("Something went wrong writing to influxdb", err);
         }
     });
 }
@@ -39,14 +40,12 @@ function getMeasurementNameFromTopic(topic) {
 }
 
 function extractValue(message) {
-    switch (message.type) {
-        case "boolean":
-            return message.value ? 1 : 0;
-        case "float":
-        case "string":
-        default:
-            return message.value;
+    if (message == "OFF") {
+        return 0;
+    } else if (message == "ON") {
+        return 1;
     }
+    return parseFloat(message);
 }
 
 function convertToInfluxPoint(topic, message) {
@@ -56,9 +55,9 @@ function convertToInfluxPoint(topic, message) {
     fields[fieldName] = value;
     return {
         measurement: 'otgw',
-        tags: { measure: fieldName},
+        tags: { measure: fieldName, uniqueID: uniqueID},
         fields : fields,
-        "timestamp" : new Date(message.timestamp)
+        "timestamp" : new Date()
     };
 }
 
@@ -70,13 +69,14 @@ function readConfiguration() {
     mqtthost = config.mqtt.host;
     mqttport = config.mqtt.port;
     topics = config.mqtt.topics;
+    uniqueID = config.mqtt.uniqueID;
 }
 
 
 function start() {
     readConfiguration();
 
-    const influx = new Influx.InfluxDB({
+    influx = new Influx.InfluxDB({
         host: influxhost,
         port: influxport,
         database: databasename
@@ -90,6 +90,4 @@ function start() {
     listenForMessages();
 }
 
-module.exports = function() {
-    return start();
-};
+start();
