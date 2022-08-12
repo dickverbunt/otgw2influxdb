@@ -4,12 +4,13 @@
 const util = require('util');
 const fs = require('fs');
 const mqtt = require('mqtt');
-const Influx = require('influx');
+const {InfluxDB, Point} = require('@influxdata/influxdb-client');
 var mqttClient;
-var influx;
-var influxhost = 'localhost';
-var influxport = 8086;
-var databasename = 'heatingsystem';
+var writeApi;
+var influxurl = 'localhost';
+var influxtoken = '';
+var influxorg = 'org';
+var influxbucket = 'heatingsystem';
 var mqtthost = 'localhost';
 var mqttport = 1883;
 var uniqueID;
@@ -27,7 +28,8 @@ function listenForMessages() {
     mqttClient.on('message', function (topic, message) {
         var convertedMessage = convertToInfluxPoint(topic, message);
         try {
-            influx.writePoints([convertedMessage]);
+            writeApi.writePoint(convertedMessage);
+            writeApi.flush();
         } catch (err) {
             console.error("Something went wrong writing to influxdb", err);
         }
@@ -51,21 +53,17 @@ function extractValue(message) {
 function convertToInfluxPoint(topic, message) {
     var fieldName = getMeasurementNameFromTopic(topic);
     var value = extractValue(message);
-    var fields = {};
-    fields[fieldName] = value;
-    return {
-        measurement: 'otgw',
-        tags: { measure: fieldName, uniqueID: uniqueID},
-        fields : fields,
-        "timestamp" : new Date()
-    };
+
+    return new Point('otgw').tag('measure', fieldName).floatField(fieldName, value).timestamp(new Date());
 }
 
 function readConfiguration() {
     var config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
     console.log(util.format('Loaded config: %s', JSON.stringify(config)));
-    influxhost = config.influx.host;
-    influxport = config.influx.port;
+    influxurl = config.influx.url;
+    influxtoken = config.influx.token;
+    influxorg = config.influx.org;
+    influxbucket = config.influx.bucket;
     mqtthost = config.mqtt.host;
     mqttport = config.mqtt.port;
     topics = config.mqtt.topics;
@@ -76,13 +74,8 @@ function readConfiguration() {
 function start() {
     readConfiguration();
 
-    influx = new Influx.InfluxDB({
-        host: influxhost,
-        port: influxport,
-        database: databasename
-    });
-
-    influx.createDatabase('heatingsystem');
+    writeApi = new InfluxDB({url:influxurl, token:influxtoken}).getWriteApi(influxorg, influxbucket, 'ns')
+    writeApi.useDefaultTags({uniqueID: uniqueID})
 
     mqttClient = mqtt.connect('mqtt://' + mqtthost + ':' + mqttport);
 

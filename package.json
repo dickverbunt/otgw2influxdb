@@ -4,7 +4,7 @@
   "description": "Subscribes to mqtt for otgw and stores the readings into influxdb",
   "main": "index.js",
   "dependencies": {
-    "influx": "^5.0.7",
+    "@influxdata/influxdb-client": "^1.28.0",
     "mqtt": "^2.16.0"
   },
   "devDependencies": {

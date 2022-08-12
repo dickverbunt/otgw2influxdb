@@ -1,7 +1,10 @@
 {
   "influx": {
-    "host" : "localhost",
-    "port" : 8086
+    "url" : "http://localhost:8086",
+    "port" : 8086,
+    "token" : "",
+    "org" : "org",
+    "bucket" : "heatingsystem"
   },
   "mqtt": {
     "host" : "localhost",
