@@ -4,16 +4,8 @@
   "description": "Subscribes to mqtt for otgw and stores the readings into influxdb",
   "main": "index.js",
   "dependencies": {
-    "@influxdata/influxdb-client": "^1.28.0",
+    "@influxdata/influxdb-client": "^1.35.0",
     "mqtt": "^2.16.0"
-  },
-  "devDependencies": {
-    "chai": "^4.1.2",
-    "chai-spies": "^1.0.0",
-    "mocha": "^5.0.4"
-  },
-  "scripts": {
-    "test": "mocha --reporter spec"
   },
   "author": "Auke Noppe",
   "license": "MIT",
